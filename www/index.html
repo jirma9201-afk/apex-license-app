@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>APEX LICENSE — Trial Arena</title>
+<style>
+  :root{
+    --bg-deep:#0E1513;
+    --bg-panel:#161F1C;
+    --bg-panel-2:#1D2925;
+    --line: rgba(237,230,214,0.10);
+    --jade:#3FA796;
+    --jade-dim: rgba(63,167,150,0.25);
+    --amber:#E0A458;
+    --blood:#C1483C;
+    --bone:#EDE6D6;
+    --bone-dim: rgba(237,230,214,0.55);
+    --violet:#8E7CC3;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(63,167,150,0.09), transparent 60%),
+      var(--bg-deep);
+    color:var(--bone);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{
+    font-family: Georgia, "Times New Roman", serif;
+    letter-spacing:0.02em;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--jade);
+    font-weight:600;
+  }
+  #app{
+    width:100%;
+    max-width:520px;
+    min-height:640px;
+  }
+
+  /* ---------- shared bits ---------- */
+  .hexgauge{
+    width:64px;height:64px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+    flex-shrink:0;
+  }
+  .hexgauge svg{ position:absolute; inset:0; transform:rotate(-90deg); }
+  .hexgauge .num{ font-size:18px; font-weight:700; font-family: Georgia, serif; z-index:1;}
+  .barwrap{
+    height:9px; width:100%;
+    background:rgba(255,255,255,0.06);
+    border-radius:6px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    position:relative;
+  }
+  .barfill{ height:100%; border-radius:6px; transition:width .5s cubic-bezier(.4,0,.2,1); }
+  .barfill.hp{ background:linear-gradient(90deg,#8E3229,var(--blood)); }
+  .barfill.shield{ background:linear-gradient(90deg,#5b7dd6,#8aa6ec); }
+
+  button{ font-family:inherit; cursor:pointer; }
+  .btn{
+    background:var(--jade);
+    color:#0E1513;
+    border:none;
+    padding:13px 22px;
+    border-radius:10px;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:0.03em;
+    transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+    box-shadow:0 4px 0 #2a7d70;
+  }
+  .btn:hover{ transform:translateY(-1px); }
+  .btn:active{ transform:translateY(2px); box-shadow:0 2px 0 #2a7d70; }
+  .btn:disabled{ opacity:0.35; cursor:not-allowed; transform:none; box-shadow:0 4px 0 #2a7d70;}
+  .btn.ghost{
+    background:transparent; color:var(--bone); border:1px solid var(--line);
+    box-shadow:none;
+  }
+  .btn.ghost:hover{ border-color:var(--jade); color:var(--jade); }
+  .btn:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+
+  /* ---------- SELECT SCREEN ---------- */
+  .title-block{ text-align:center; margin-bottom:26px; }
+  .title-block h1{
+    font-size:34px; margin:8px 0 4px; font-weight:700;
+    letter-spacing:0.01em;
+  }
+  .title-block p{ margin:0; color:var(--bone-dim); font-size:13.5px; }
+
+  .roster{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .hunter-card{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    cursor:pointer;
+    transition:border-color .15s ease, transform .15s ease, background .15s ease;
+    position:relative;
+    overflow:hidden;
+  }
+  .hunter-card::before{
+    content:'';
+    position:absolute; inset:0;
+    background: linear-gradient(160deg, var(--accent, var(--jade)) 0%, transparent 40%);
+    opacity:0.10;
+  }
+  .hunter-card:hover{ border-color:var(--accent, var(--jade)); transform:translateY(-2px); }
+  .hunter-card.selected{ border-color:var(--accent, var(--jade)); background:var(--bg-panel-2); }
+  .h-glyph{
+    width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--accent, var(--jade)); color:#0E1513; font-weight:700; font-size:15px;
+    margin-bottom:10px;
+  }
+  .h-name{ font-weight:700; font-size:15px; margin:0 0 1px; }
+  .h-title{ font-size:11px; color:var(--bone-dim); margin:0 0 8px; text-transform:uppercase; letter-spacing:0.06em;}
+  .h-desc{ font-size:12px; color:var(--bone-dim); line-height:1.5; margin:0; min-height:48px;}
+
+  .detail-panel{
+    margin-top:16px; background:var(--bg-panel); border:1px solid var(--line);
+    border-radius:14px; padding:16px;
+  }
+  .detail-panel h3{ margin:0 0 2px; font-size:16px; }
+  .detail-panel .sub{ font-size:11px; color:var(--jade); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:10px;}
+  .mini-cards{ display:flex; flex-direction:column; gap:7px; }
+  .mini-card{
+    display:flex; align-items:center; gap:9px;
+    font-size:12.5px; color:var(--bone-dim);
+    padding:7px 9px; background:rgba(255,255,255,0.03); border-radius:8px;
+  }
+  .mini-card b{ color:var(--bone); font-weight:600; }
+  .tag{
+    font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em;
+    padding:2px 6px; border-radius:5px; font-weight:700; flex-shrink:0;
+  }
+  .tag.attack{ background:rgba(193,72,60,0.22); color:#e08277;}
+  .tag.defend{ background:rgba(91,125,214,0.22); color:#9db3ec;}
+  .tag.special{ background:rgba(224,164,88,0.22); color:var(--amber);}
+  .tag.utility{ background:var(--jade-dim); color:var(--jade);}
+
+  .go-row{ margin-top:18px; display:flex; justify-content:center; }
+
+  /* ---------- BATTLE SCREEN ---------- */
+  .trial-strip{
+    display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:14px;
+  }
+  .trial-dot{ width:7px;height:7px;border-radius:50%; background:rgba(255,255,255,0.15); }
+  .trial-dot.done{ background:var(--jade); }
+  .trial-dot.now{ background:var(--amber); width:9px;height:9px; }
+
+  .combatant{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:13px 14px;
+    display:flex; align-items:center; gap:12px;
+    position:relative;
+  }
+  .combatant.enemy{ margin-bottom:10px; }
+  .combatant.me{ margin-top:10px; }
+  .c-info{ flex:1; min-width:0; }
+  .c-name-row{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:6px;}
+  .c-name{ font-weight:700; font-size:14.5px; }
+  .c-hp-num{ font-size:11px; color:var(--bone-dim); font-variant-numeric:tabular-nums; }
+  .status-row{ display:flex; gap:5px; margin-top:6px; flex-wrap:wrap; min-height:18px;}
+  .status-chip{
+    font-size:10px; padding:2px 7px; border-radius:20px; border:1px solid var(--line);
+    color:var(--bone-dim); display:flex; align-items:center; gap:3px;
+  }
+  .status-chip.shield{ color:#9db3ec; border-color:rgba(91,125,214,0.4); }
+  .status-chip.burn{ color:#e08277; border-color:rgba(193,72,60,0.4); }
+  .status-chip.stun{ color:var(--amber); border-color:rgba(224,164,88,0.4); }
+
+  .avatar{
+    width:46px;height:46px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--accent, var(--jade)); color:#0E1513; font-weight:700; font-size:17px;
+    flex-shrink:0; position:relative;
+  }
+  .avatar.hit{ animation:hitflash .4s ease; }
+  @keyframes hitflash{ 0%{ box-shadow:0 0 0 0 rgba(193,72,60,0.7);} 60%{ box-shadow:0 0 0 14px rgba(193,72,60,0);} }
+
+  .log{
+    background:rgba(0,0,0,0.18);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:9px 12px;
+    font-size:12px;
+    color:var(--bone-dim);
+    margin:12px 0;
+    min-height:38px;
+    max-height:64px;
+    overflow-y:auto;
+    line-height:1.6;
+  }
+  .log .fresh{ color:var(--bone); }
+
+  .energy-row{ display:flex; align-items:center; gap:10px; margin:2px 0 12px; }
+  .energy-label{ font-size:11px; color:var(--bone-dim); text-transform:uppercase; letter-spacing:0.1em; }
+  .pips{ display:flex; gap:4px; }
+  .pip{ width:11px; height:16px; border-radius:3px; background:rgba(255,255,255,0.08); border:1px solid var(--line); transition:background .2s ease;}
+  .pip.on{ background:var(--jade); border-color:var(--jade); }
+
+  .hand{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .card{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px 12px 11px;
+    text-align:left;
+    color:var(--bone);
+    display:flex; flex-direction:column; gap:5px;
+    min-height:98px;
+    position:relative;
+    transition:transform .12s ease, border-color .12s ease, opacity .12s ease;
+  }
+  .card:hover:not(:disabled){ transform:translateY(-3px); border-color:var(--accent-card, var(--jade)); }
+  .card:disabled{ opacity:0.38; cursor:not-allowed; }
+  .card .cname{ font-weight:700; font-size:13px; padding-right:26px; }
+  .card .cdesc{ font-size:11px; color:var(--bone-dim); line-height:1.45; flex:1; }
+  .card .ccost{
+    position:absolute; top:10px; right:10px;
+    width:22px;height:22px; border-radius:50%;
+    background:var(--jade-dim); color:var(--jade);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700;
+  }
+  .card .ccd{
+    position:absolute; bottom:10px; right:10px;
+    font-size:10px; color:var(--amber); font-weight:700;
+  }
+
+  /* ---------- END SCREENS ---------- */
+  .end-screen{ text-align:center; padding:60px 10px; }
+  .end-screen .big{ font-size:42px; margin:10px 0 6px; }
+  .end-screen p{ color:var(--bone-dim); font-size:13.5px; max-width:340px; margin:0 auto 22px; line-height:1.6;}
+  .end-actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+
+  .hidden{ display:none !important; }
+  ::-webkit-scrollbar{ width:6px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.15); border-radius:4px; }
+
+  @media (max-width:400px){
+    .roster{ grid-template-columns:1fr; }
+    .hand{ grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+
+/* ============ DATA ============ */
+
+const HUNTERS = [
+  {
+    id:'kaelen', name:'Kaelen Vosk', title:'The Vanguard', accent:'#C1483C',
+    glyph:'KV', maxHp:115, maxEnergy:6, energyRegen:3,
+    desc:'A frontline brawler who trades hits without flinching. Wears foes down with raw kinetic force.',
+    cards:[
+      {id:'strike', name:'Iron Strike', cost:2, type:'attack', dmg:15, desc:'A hard kinetic blow to the chest.'},
+      {id:'guard', name:'Brace', cost:1, type:'defend', shield:12, desc:'Plants his feet and raises a kinetic shield.'},
+      {id:'special', name:'Groundbreaker', cost:4, cooldown:3, type:'special', dmg:24, stun:1, desc:'Slams the arena floor. Stuns the foe one turn.'},
+      {id:'focus', name:'Steel Focus', cost:1, type:'utility', bonusEnergy:2, desc:'Steadies his breathing. +2 energy next turn.'},
+    ]
+  },
+  {
+    id:'mira', name:'Mira Solace', title:'The Sentinel', accent:'#5b7dd6',
+    glyph:'MS', maxHp:100, maxEnergy:7, energyRegen:3,
+    desc:'A ward-caster who outlasts opponents through shields and steady recovery.',
+    cards:[
+      {id:'lance', name:'Ward Lance', cost:2, type:'attack', dmg:11, desc:'A narrow bolt of hardened ward-light.'},
+      {id:'aegis', name:'Aegis Bloom', cost:2, type:'defend', shield:18, desc:'Blooms a layered barrier around herself.'},
+      {id:'special', name:'Sanctum Pulse', cost:4, cooldown:3, type:'special', heal:22, shield:10, desc:'Releases a healing pulse and raises a shield.'},
+      {id:'mend', name:'Quiet Mend', cost:2, type:'utility', heal:10, desc:'A small, steady restoration of health.'},
+    ]
+  },
+  {
+    id:'renn', name:'Renn Ashfall', title:'The Trickster', accent:'#E0A458',
+    glyph:'RA', maxHp:92, maxEnergy:8, energyRegen:4,
+    desc:'Fast and unpredictable, Renn wins by bleeding foes dry over time.',
+    cards:[
+      {id:'jab', name:'Flicker Jab', cost:1, type:'attack', dmg:8, desc:'A quick, low-cost strike.'},
+      {id:'cinder', name:'Cinder Line', cost:2, type:'attack', dmg:6, burn:{dmg:5, turns:3}, desc:'A thrown cinder that keeps burning.'},
+      {id:'special', name:'Flux Cascade', cost:4, cooldown:3, type:'special', dmg:10, burn:{dmg:8, turns:3}, desc:'A cascading flux strike that ignites deeply.'},
+      {id:'slip', name:'Slip Step', cost:1, type:'defend', shield:8, desc:'Sidesteps the next blow, absorbing some damage.'},
+    ]
+  },
+  {
+    id:'doc', name:'Dr. Oyelaran Thorne', title:'The Artificer', accent:'#8E7CC3',
+    glyph:'OT', maxHp:98, maxEnergy:7, energyRegen:3,
+    desc:'Builds constructs mid-fight, turning energy management into a slow, grinding win.',
+    cards:[
+      {id:'bolt', name:'Construct Bolt', cost:2, type:'attack', dmg:13, desc:'Fires a bolt from a shoulder-mounted rig.'},
+      {id:'plate', name:'Plate Up', cost:2, type:'defend', shield:16, desc:'Bolts on reinforced plating.'},
+      {id:'special', name:'Overcharge Array', cost:5, cooldown:4, type:'special', dmg:30, desc:'Every construct fires at once.'},
+      {id:'siphon', name:'Siphon Coil', cost:1, type:'utility', bonusEnergy:3, desc:'Draws ambient charge. +3 energy next turn.'},
+    ]
+  },
+];
+
+const TRIALS = [
+  { name:'Gate Trial', accent:'#8a9a8f', maxHp:70, maxEnergy:5, aggression:0.55 },
+  { name:'Marsh Trial', accent:'#6f9a7a', maxHp:90, maxEnergy:6, aggression:0.6 },
+  { name:'Ashline Trial', accent:'#b06a4f', maxHp:110, maxEnergy:6, aggression:0.68 },
+  { name:'Hollow Trial', accent:'#7a6f9a', maxHp:125, maxEnergy:7, aggression:0.72 },
+  { name:'The Proctor', accent:'#E0A458', maxHp:150, maxEnergy:8, aggression:0.8, boss:true },
+];
+
+/* ============ STATE ============ */
+
+let state = null;
+
+function freshCombatant(base, isEnemy){
+  return {
+    name: base.name,
+    accent: base.accent,
+    glyph: base.glyph || base.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+    hp: base.maxHp, maxHp: base.maxHp,
+    energy: base.maxEnergy, maxEnergy: base.maxEnergy, energyRegen: base.energyRegen,
+    bonusEnergyNext: 0,
+    shield: 0,
+    burn: null, // {dmg, turns}
+    stunTurns: 0,
+    cooldowns: {},
+    cards: base.cards || null,
+  };
+}
+
+function newGame(hunterId){
+  const base = HUNTERS.find(h=>h.id===hunterId);
+  state = {
+    screen:'battle',
+    hunterId,
+    trialIndex: 0,
+    player: freshCombatant(base, false),
+    enemy: null,
+    log: [],
+    busy:false,
+  };
+  startTrial();
+}
+
+function startTrial(){
+  const t = TRIALS[state.trialIndex];
+  state.enemy = freshCombatant({
+    name:t.name, accent:t.accent, glyph: t.boss ? 'PX' : ('T'+(state.trialIndex+1)),
+    maxHp:t.maxHp, maxEnergy:t.maxEnergy, energyRegen:3
+  }, true);
+  state.enemy.aggression = t.aggression;
+  state.enemy.isBoss = !!t.boss;
+  // full heal player between trials, but keep it a little costly: restore 60% of missing hp
+  state.player.hp = Math.min(state.player.maxHp, state.player.hp + Math.round((state.player.maxHp-state.player.hp)*0.6));
+  state.player.shield = 0;
+  state.player.energy = state.player.maxEnergy;
+  state.log = [];
+  addLog(`Trial begins: ${t.name}.`);
+  render();
+}
+
+function addLog(msg){
+  state.log.push(msg);
+  if(state.log.length>40) state.log.shift();
+}
+
+/* ============ BATTLE LOGIC ============ */
+
+function hunterOf(id){ return HUNTERS.find(h=>h.id===id); }
+
+function dealDamage(target, amount, sourceLabel){
+  let remaining = amount;
+  if(target.shield>0){
+    const absorbed = Math.min(target.shield, remaining);
+    target.shield -= absorbed;
+    remaining -= absorbed;
+  }
+  if(remaining>0){
+    target.hp = Math.max(0, target.hp - remaining);
+  }
+  return amount;
+}
+
+function applyCard(card, actor, opponent, actorLabel){
+  if(card.dmg){
+    const dmg = card.dmg;
+    dealDamage(opponent, dmg, actorLabel);
+    addLog(`${actorLabel} uses ${card.name} — ${dmg} dmg.`);
+    triggerHitFlash(actor===state.player ? 'enemy' : 'player');
+  }
+  if(card.shield){
+    actor.shield += card.shield;
+    if(!card.dmg) addLog(`${actorLabel} uses ${card.name} — +${card.shield} shield.`);
+  }
+  if(card.heal){
+    actor.hp = Math.min(actor.maxHp, actor.hp + card.heal);
+    if(!card.dmg) addLog(`${actorLabel} uses ${card.name} — heals ${card.heal}.`);
+  }
+  if(card.burn){
+    opponent.burn = {dmg:card.burn.dmg, turns:card.burn.turns};
+  }
+  if(card.stun){
+    opponent.stunTurns = Math.max(opponent.stunTurns, card.stun);
+  }
+  if(card.bonusEnergy){
+    actor.bonusEnergyNext = (actor.bonusEnergyNext||0) + card.bonusEnergy;
+    addLog(`${actorLabel} uses ${card.name}.`);
+  }
+  if(card.cooldown){
+    actor.cooldowns[card.id] = card.cooldown;
+  }
+}
+
+let flashTarget = null;
+function triggerHitFlash(who){
+  flashTarget = who;
+  setTimeout(()=>{ flashTarget=null; renderFlashOnly(); }, 400);
+}
+
+function playerPlayCard(cardId){
+  if(state.busy || state.screen!=='battle') return;
+  const hunter = hunterOf(state.hunterId);
+  const card = hunter.cards.find(c=>c.id===cardId);
+  if(!card) return;
+  if(state.player.energy < card.cost) return;
+  if(state.player.cooldowns[card.id]>0) return;
+
+  state.busy = true;
+  state.player.energy -= card.cost;
+  applyCard(card, state.player, state.enemy, hunter.name.split(' ')[0]);
+  render();
+
+  checkEnd(()=>{
+    setTimeout(()=>{ enemyTurn(); }, 620);
+  });
+}
+
+function chooseEnemyCard(){
+  const t = TRIALS[state.trialIndex];
+  const enemy = state.enemy;
+  const pool = ENEMY_MOVES;
+  const hpPct = enemy.hp/enemy.maxHp;
+  // simple weighted decision
+  let candidates = pool.filter(m=>enemy.energy>=m.cost && !(enemy.cooldowns[m.id]>0));
+  if(candidates.length===0) candidates = [pool[0]];
+
+  let weighted = candidates.map(m=>{
+    let w = 1;
+    if(m.type==='attack') w *= (0.6 + t.aggression);
+    if(m.type==='defend') w *= (hpPct<0.45 ? 1.8 : 0.5);
+    if(m.type==='special') w *= (enemy.energy>=m.cost ? 1.4 : 0);
+    if(m.type==='heal') w *= (hpPct<0.5 ? 1.6 : 0.2);
+    return {m, w};
+  });
+  const total = weighted.reduce((s,x)=>s+x.w,0) || 1;
+  let r = Math.random()*total;
+  for(const x of weighted){
+    if(r<x.w) return x.m;
+    r -= x.w;
+  }
+  return weighted[0].m;
+}
+
+const ENEMY_MOVES = [
+  {id:'e_hit', name:'Trial Strike', cost:2, type:'attack', dmg:13, desc:''},
+  {id:'e_heavy', name:'Heavy Blow', cost:3, type:'attack', dmg:19, desc:''},
+  {id:'e_guard', name:'Trial Guard', cost:2, type:'defend', shield:14, desc:''},
+  {id:'e_special', name:'Proctor Surge', cost:5, cooldown:3, type:'special', dmg:26, desc:''},
+  {id:'e_mend', name:'Trial Mend', cost:2, type:'utility', heal:14, desc:''},
+];
+
+function enemyTurn(){
+  if(state.screen!=='battle'){ state.busy=false; return; }
+  const enemy = state.enemy;
+
+  if(enemy.stunTurns>0){
+    addLog(`${enemy.name} is stunned and skips their turn.`);
+    enemy.stunTurns -= 1;
+    tickEndOfRound();
+    return;
+  }
+
+  const move = chooseEnemyCard();
+  if(enemy.energy >= move.cost){
+    enemy.energy -= move.cost;
+    applyCard(move, enemy, state.player, enemy.name.split(' ')[0]);
+  } else {
+    addLog(`${enemy.name} hesitates, low on energy.`);
+  }
+  render();
+
+  checkEnd(()=>{
+    setTimeout(()=>{ tickEndOfRound(); }, 500);
+  });
+}
+
+function tickEndOfRound(){
+  // burn ticks
+  [state.player, state.enemy].forEach(c=>{
+    if(c.burn){
+      dealDamage(c, c.burn.dmg, '');
+      addLog(`${c.name} takes ${c.burn.dmg} burn damage.`);
+      c.burn.turns -= 1;
+      if(c.burn.turns<=0) c.burn = null;
+    }
+    // cooldowns
+    Object.keys(c.cooldowns||{}).forEach(k=>{
+      if(c.cooldowns[k]>0) c.cooldowns[k] -= 1;
+    });
+    // energy regen
+    const regen = (c.energyRegen||3) + (c.bonusEnergyNext||0);
+    c.bonusEnergyNext = 0;
+    c.energy = Math.min(c.maxEnergy, c.energy + regen);
+  });
+
+  state.busy = false;
+  checkEnd(()=>{ render(); });
+}
+
+function checkEnd(continueFn){
+  if(state.enemy.hp<=0){
+    onEnemyDefeated();
+    return;
+  }
+  if(state.player.hp<=0){
+    state.screen='lose';
+    render();
+    return;
+  }
+  if(continueFn) continueFn();
+}
+
+function onEnemyDefeated(){
+  const wasBoss = state.enemy.isBoss;
+  addLog(`${state.enemy.name} is defeated!`);
+  if(wasBoss){
+    state.screen='victory';
+    render();
+    return;
+  }
+  state.screen='trial-clear';
+  render();
+}
+
+function nextTrial(){
+  state.trialIndex += 1;
+  state.screen='battle';
+  startTrial();
+}
+
+/* ============ RENDER ============ */
+
+const app = document.getElementById('app');
+
+function render(){
+  if(!state){ renderSelect(); return; }
+  if(state.screen==='battle') renderBattle();
+  else if(state.screen==='trial-clear') renderTrialClear();
+  else if(state.screen==='lose') renderLose();
+  else if(state.screen==='victory') renderVictory();
+}
+
+function renderFlashOnly(){
+  const enemyAv = document.getElementById('enemy-avatar');
+  const playerAv = document.getElementById('player-avatar');
+  if(enemyAv) enemyAv.classList.remove('hit');
+  if(playerAv) playerAv.classList.remove('hit');
+}
+
+function esc(s){ return s; }
+
+function gaugeSvg(pct, color){
+  const r=27, c=2*Math.PI*r;
+  const off = c*(1-pct);
+  return `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="6"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" style="transition:stroke-dashoffset .5s ease"/></svg>`;
+}
+
+/* ---- select screen ---- */
+let selectedHunter = HUNTERS[0].id;
+
+function renderSelect(){
+  const h = hunterOf(selectedHunter);
+  app.innerHTML = `
+    <div class="title-block">
+      <div class="eyebrow">Apex License · Trial Arena</div>
+      <h1 class="display">Choose your Hunter</h1>
+      <p>Five trials stand between you and a license. Pick a fighter and study their kit before you step in.</p>
+    </div>
+    <div class="roster" id="roster"></div>
+    <div class="detail-panel" id="detail"></div>
+    <div class="go-row"><button class="btn" id="startBtn">Enter the Gate Trial →</button></div>
+  `;
+  const roster = document.getElementById('roster');
+  HUNTERS.forEach(hu=>{
+    const el = document.createElement('div');
+    el.className = 'hunter-card' + (hu.id===selectedHunter ? ' selected':'');
+    el.style.setProperty('--accent', hu.accent);
+    el.innerHTML = `
+      <div class="h-glyph">${hu.glyph||hu.name[0]}</div>
+      <p class="h-name">${hu.name}</p>
+      <p class="h-title">${hu.title}</p>
+      <p class="h-desc">${hu.desc}</p>
+    `;
+    el.addEventListener('click', ()=>{ selectedHunter = hu.id; renderSelect(); });
+    roster.appendChild(el);
+  });
+
+  const detail = document.getElementById('detail');
+  detail.innerHTML = `
+    <h3>${h.name}</h3>
+    <div class="sub">${h.title} · ${h.maxHp} HP · ${h.maxEnergy} Energy</div>
+    <div class="mini-cards">
+      ${h.cards.map(c=>`
+        <div class="mini-card">
+          <span class="tag ${c.type}">${c.type}</span>
+          <div><b>${c.name}</b> — ${c.desc} <span style="color:var(--bone-dim)">(cost ${c.cost}${c.cooldown?', cd '+c.cooldown:''})</span></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  document.getElementById('startBtn').addEventListener('click', ()=>{ newGame(selectedHunter); });
+}
+
+/* ---- battle screen ---- */
+function renderBattle(){
+  const hunter = hunterOf(state.hunterId);
+  const p = state.player, e = state.enemy;
+
+  app.innerHTML = `
+    <div class="trial-strip">
+      ${TRIALS.map((t,i)=>`<span class="trial-dot ${i<state.trialIndex?'done':''} ${i===state.trialIndex?'now':''}"></span>`).join('')}
+    </div>
+
+    <div class="combatant enemy">
+      <div class="avatar" id="enemy-avatar" style="background:${e.accent}">${e.glyph}</div>
+      <div class="c-info">
+        <div class="c-name-row"><span class="c-name">${e.name}</span><span class="c-hp-num">${e.hp}/${e.maxHp}</span></div>
+        <div class="barwrap"><div class="barfill hp" style="width:${Math.max(0,e.hp/e.maxHp*100)}%"></div></div>
+        <div class="status-row">
+          ${e.shield>0?`<span class="status-chip shield">🛡 ${e.shield}</span>`:''}
+          ${e.burn?`<span class="status-chip burn">🔥 ${e.burn.turns}t</span>`:''}
+          ${e.stunTurns>0?`<span class="status-chip stun">⏸ stunned</span>`:''}
+        </div>
+      </div>
+      ${gaugeSvg(e.energy/e.maxEnergy, e.accent)}
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="combatant me">
+      <div class="avatar" id="player-avatar" style="background:${p.accent}">${p.glyph}</div>
+      <div class="c-info">
+        <div class="c-name-row"><span class="c-name">${p.name}</span><span class="c-hp-num">${p.hp}/${p.maxHp}</span></div>
+        <div class="barwrap"><div class="barfill hp" style="width:${Math.max(0,p.hp/p.maxHp*100)}%"></div></div>
+        <div class="status-row">
+          ${p.shield>0?`<span class="status-chip shield">🛡 ${p.shield}</span>`:''}
+          ${p.burn?`<span class="status-chip burn">🔥 ${p.burn.turns}t</span>`:''}
+        </div>
+      </div>
+      ${gaugeSvg(p.energy/p.maxEnergy, p.accent)}
+    </div>
+
+    <div class="energy-row">
+      <span class="energy-label">Energy</span>
+      <div class="pips">${Array.from({length:p.maxEnergy}).map((_,i)=>`<span class="pip ${i<p.energy?'on':''}"></span>`).join('')}</div>
+    </div>
+
+    <div class="hand" id="hand"></div>
+  `;
+
+  const logEl = document.getElementById('log');
+  logEl.innerHTML = state.log.slice(-4).map((l,i,arr)=> i===arr.length-1 ? `<div class="fresh">${l}</div>` : `<div>${l}</div>`).join('');
+  logEl.scrollTop = logEl.scrollHeight;
+
+  const hand = document.getElementById('hand');
+  hunter.cards.forEach(c=>{
+    const onCd = p.cooldowns[c.id]>0;
+    const noEnergy = p.energy < c.cost;
+    const disabled = onCd || noEnergy || state.busy;
+    const btn = document.createElement('button');
+    btn.className = 'card';
+    btn.disabled = disabled;
+    btn.style.setProperty('--accent-card', hunter.accent);
+    btn.innerHTML = `
+      <span class="ccost">${c.cost}</span>
+      <span class="cname">${c.name}</span>
+      <span class="cdesc">${c.desc}</span>
+      ${onCd?`<span class="ccd">CD ${p.cooldowns[c.id]}</span>`:''}
+    `;
+    btn.addEventListener('click', ()=> playerPlayCard(c.id));
+    hand.appendChild(btn);
+  });
+
+  if(flashTarget==='enemy') document.getElementById('enemy-avatar').classList.add('hit');
+  if(flashTarget==='player') document.getElementById('player-avatar').classList.add('hit');
+}
+
+/* ---- trial clear ---- */
+function renderTrialClear(){
+  const isLast = state.trialIndex >= TRIALS.length-1;
+  app.innerHTML = `
+    <div class="end-screen">
+      <div class="eyebrow">Trial Cleared</div>
+      <div class="big display">${TRIALS[state.trialIndex].name}</div>
+      <p>${state.enemy.name} is down. Your wounds carry forward — rest a little before the next trial.</p>
+      <div class="end-actions">
+        <button class="btn" id="nextBtn">${isLast? 'Continue' : 'Next Trial →'}</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('nextBtn').addEventListener('click', nextTrial);
+}
+
+/* ---- lose ---- */
+function renderLose(){
+  app.innerHTML = `
+    <div class="end-screen">
+      <div class="eyebrow" style="color:var(--blood)">Trial Failed</div>
+      <div class="big display">Defeated</div>
+      <p>${state.enemy.name} was too much this time. Every licensed Hunter has a story like this one — try again with a different approach, or a different fighter.</p>
+      <div class="end-actions">
+        <button class="btn" id="retryBtn">Retry Trial</button>
+        <button class="btn ghost" id="menuBtn">Choose Hunter</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('retryBtn').addEventListener('click', ()=>{ state.player.hp = hunterOf(state.hunterId).maxHp; state.screen='battle'; startTrial(); });
+  document.getElementById('menuBtn').addEventListener('click', ()=>{ state=null; renderSelect(); });
+}
+
+/* ---- victory ---- */
+function renderVictory(){
+  app.innerHTML = `
+    <div class="end-screen">
+      <div class="eyebrow" style="color:var(--amber)">License Earned</div>
+      <div class="big display">Apex Hunter</div>
+      <p>${hunterOf(state.hunterId).name} cleared every trial, including the Proctor. The license is yours.</p>
+      <div class="end-actions">
+        <button class="btn" id="againBtn">Run It Again</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('againBtn').addEventListener('click', ()=>{ state=null; renderSelect(); });
+}
+
+renderSelect();
+})();
+</script>
+</body>
+</html>

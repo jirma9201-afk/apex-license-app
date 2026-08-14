@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Android build outputs
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/captures/
+
+# iOS build outputs / CocoaPods
+ios/App/Pods/
+ios/App/App.xcworkspace/
+ios/App/build/
+ios/DerivedData/
+ios/*.xcuserstate
+ios/App/*.xcuserstate
+**/xcuserdata/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
