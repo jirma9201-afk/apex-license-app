@@ -1,7 +1,7 @@
 {
   "name": "apex-license-trial-arena",
   "version": "1.0.0",
-  "description": "Apex License: Trial Arena — an original turn-based hunter card battle game.",
+  "description": "Apex License: Trial Arena \u2014 an original turn-based hunter card battle game.",
   "scripts": {
     "sync": "cap sync",
     "open:ios": "cap open ios",

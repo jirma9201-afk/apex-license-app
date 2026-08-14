@@ -1,0 +1,12 @@
+{
+  "appId": "com.yourstudio.apexlicense",
+  "appName": "Apex License",
+  "webDir": "www",
+  "backgroundColor": "#0E1513",
+  "ios": {
+    "contentInset": "always"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
