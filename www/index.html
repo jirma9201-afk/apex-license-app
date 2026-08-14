@@ -186,6 +186,7 @@
   .status-chip.shield{ color:#9db3ec; border-color:rgba(91,125,214,0.4); }
   .status-chip.burn{ color:#e08277; border-color:rgba(193,72,60,0.4); }
   .status-chip.stun{ color:var(--amber); border-color:rgba(224,164,88,0.4); }
+  .status-chip.weaken{ color:#b79ee0; border-color:rgba(142,124,195,0.4); }
 
   .avatar{
     width:46px;height:46px;border-radius:50%;
@@ -195,6 +196,8 @@
   }
   .avatar.hit{ animation:hitflash .4s ease; }
   @keyframes hitflash{ 0%{ box-shadow:0 0 0 0 rgba(193,72,60,0.7);} 60%{ box-shadow:0 0 0 14px rgba(193,72,60,0);} }
+  @keyframes bigshake{ 10%,90%{transform:translateX(-1px);} 20%,80%{transform:translateX(2px);} 30%,50%,70%{transform:translateX(-4px);} 40%,60%{transform:translateX(4px);} }
+  #app.shake{ animation:bigshake .45s cubic-bezier(.36,.07,.19,.97); }
 
   .log{
     background:rgba(0,0,0,0.18);
@@ -315,6 +318,28 @@ const HUNTERS = [
       {id:'siphon', name:'Siphon Coil', cost:1, type:'utility', bonusEnergy:3, desc:'Draws ambient charge. +3 energy next turn.'},
     ]
   },
+  {
+    id:'sable', name:'Sable Kade', title:'The Shade', accent:'#5C4A72',
+    glyph:'SK', maxHp:82, maxEnergy:7, energyRegen:4,
+    desc:'A glass-cannon assassin. Hits hard and often, but can\'t take a beating — win fast or not at all.',
+    cards:[
+      {id:'shiv', name:'Shiv', cost:1, type:'attack', dmg:10, desc:'A quick blade to a weak point.'},
+      {id:'vanish', name:'Vanish', cost:2, type:'defend', shield:9, weakenSelfSkip:false, desc:'Slips into shadow, absorbing the next blow.'},
+      {id:'special', name:'Dead of Night', cost:4, cooldown:3, type:'special', dmg:22, weaken:{pct:0.4, turns:1}, desc:'A crippling strike. Weakens the foe\'s next attack by 40%.'},
+      {id:'read', name:'Read the Room', cost:1, type:'utility', bonusEnergy:2, cleanseSelf:true, desc:'Steadies her nerve, clearing her own burn and +2 energy next turn.'},
+    ]
+  },
+  {
+    id:'yuna', name:'Yuna Frost', title:'The Warden', accent:'#5AA9C7',
+    glyph:'YF', maxHp:128, maxEnergy:6, energyRegen:3,
+    desc:'A frost-tank who slows fights to a crawl, freezing openings and grinding foes down.',
+    cards:[
+      {id:'shard', name:'Frost Shard', cost:2, type:'attack', dmg:12, weaken:{pct:0.3, turns:1}, desc:'A shard of ice that dulls the foe\'s next swing.'},
+      {id:'icewall', name:'Ice Wall', cost:2, type:'defend', shield:20, desc:'Raises a thick wall of packed ice.'},
+      {id:'special', name:'Absolute Zero', cost:5, cooldown:4, type:'special', dmg:18, stun:1, desc:'Flash-freezes the arena floor. Stuns the foe one turn.'},
+      {id:'chillfocus', name:'Chill Focus', cost:2, type:'utility', heal:8, bonusEnergy:1, desc:'A moment of calm. Small heal, +1 energy next turn.'},
+    ]
+  },
 ];
 
 const TRIALS = [
@@ -322,7 +347,9 @@ const TRIALS = [
   { name:'Marsh Trial', accent:'#6f9a7a', maxHp:90, maxEnergy:6, aggression:0.6 },
   { name:'Ashline Trial', accent:'#b06a4f', maxHp:110, maxEnergy:6, aggression:0.68 },
   { name:'Hollow Trial', accent:'#7a6f9a', maxHp:125, maxEnergy:7, aggression:0.72 },
-  { name:'The Proctor', accent:'#E0A458', maxHp:150, maxEnergy:8, aggression:0.8, boss:true },
+  { name:'Ember Reach', accent:'#c46b3f', maxHp:140, maxEnergy:7, aggression:0.75 },
+  { name:'Rift Trial', accent:'#6f6fae', maxHp:155, maxEnergy:7, aggression:0.78 },
+  { name:'The Proctor', accent:'#E0A458', maxHp:170, maxEnergy:8, aggression:0.82, boss:true },
 ];
 
 /* ============ STATE ============ */
@@ -339,6 +366,7 @@ function freshCombatant(base, isEnemy){
     bonusEnergyNext: 0,
     shield: 0,
     burn: null, // {dmg, turns}
+    weaken: null, // {pct, turns} — reduces this combatant's own next dealt damage
     stunTurns: 0,
     cooldowns: {},
     cards: base.cards || null,
@@ -400,10 +428,23 @@ function dealDamage(target, amount, sourceLabel){
 
 function applyCard(card, actor, opponent, actorLabel){
   if(card.dmg){
-    const dmg = card.dmg;
+    let dmg = card.dmg;
+    let weakenedNote = '';
+    if(actor.weaken && actor.weaken.turns>0){
+      dmg = Math.max(1, Math.round(dmg * (1 - actor.weaken.pct)));
+      actor.weaken = null;
+      weakenedNote = ' (weakened)';
+    }
     dealDamage(opponent, dmg, actorLabel);
-    addLog(`${actorLabel} uses ${card.name} — ${dmg} dmg.`);
+    addLog(`${actorLabel} uses ${card.name} — ${dmg} dmg${weakenedNote}.`);
     triggerHitFlash(actor===state.player ? 'enemy' : 'player');
+    if(dmg>=20) triggerShake();
+  }
+  if(card.weaken){
+    opponent.weaken = {pct:card.weaken.pct, turns:card.weaken.turns};
+  }
+  if(card.cleanseSelf){
+    actor.burn = null;
   }
   if(card.shield){
     actor.shield += card.shield;
@@ -432,6 +473,15 @@ let flashTarget = null;
 function triggerHitFlash(who){
   flashTarget = who;
   setTimeout(()=>{ flashTarget=null; renderFlashOnly(); }, 400);
+}
+
+function triggerShake(){
+  const el = document.getElementById('app');
+  if(!el) return;
+  el.classList.remove('shake');
+  void el.offsetWidth; // restart animation
+  el.classList.add('shake');
+  setTimeout(()=>{ el.classList.remove('shake'); }, 500);
 }
 
 function playerPlayCard(cardId){
@@ -484,6 +534,7 @@ const ENEMY_MOVES = [
   {id:'e_guard', name:'Trial Guard', cost:2, type:'defend', shield:14, desc:''},
   {id:'e_special', name:'Proctor Surge', cost:5, cooldown:3, type:'special', dmg:26, desc:''},
   {id:'e_mend', name:'Trial Mend', cost:2, type:'utility', heal:14, desc:''},
+  {id:'e_chill', name:'Trial Chill', cost:2, type:'attack', dmg:9, weaken:{pct:0.3, turns:1}, desc:''},
 ];
 
 function enemyTurn(){
@@ -519,6 +570,10 @@ function tickEndOfRound(){
       addLog(`${c.name} takes ${c.burn.dmg} burn damage.`);
       c.burn.turns -= 1;
       if(c.burn.turns<=0) c.burn = null;
+    }
+    if(c.weaken){
+      c.weaken.turns -= 1;
+      if(c.weaken.turns<=0) c.weaken = null;
     }
     // cooldowns
     Object.keys(c.cooldowns||{}).forEach(k=>{
@@ -657,6 +712,7 @@ function renderBattle(){
         <div class="status-row">
           ${e.shield>0?`<span class="status-chip shield">🛡 ${e.shield}</span>`:''}
           ${e.burn?`<span class="status-chip burn">🔥 ${e.burn.turns}t</span>`:''}
+          ${e.weaken?`<span class="status-chip weaken">⬇ weakened</span>`:''}
           ${e.stunTurns>0?`<span class="status-chip stun">⏸ stunned</span>`:''}
         </div>
       </div>
@@ -673,6 +729,7 @@ function renderBattle(){
         <div class="status-row">
           ${p.shield>0?`<span class="status-chip shield">🛡 ${p.shield}</span>`:''}
           ${p.burn?`<span class="status-chip burn">🔥 ${p.burn.turns}t</span>`:''}
+          ${p.weaken?`<span class="status-chip weaken">⬇ weakened</span>`:''}
         </div>
       </div>
       ${gaugeSvg(p.energy/p.maxEnergy, p.accent)}
@@ -735,7 +792,7 @@ function renderLose(){
     <div class="end-screen">
       <div class="eyebrow" style="color:var(--blood)">Trial Failed</div>
       <div class="big display">Defeated</div>
-      <p>${state.enemy.name} was too much this time. Every licensed Hunter has a story like this one — try again with a different approach, or a different fighter.</p>
+      <p>${state.enemy.name} was too much this time — you'd cleared ${state.trialIndex} of ${TRIALS.length} trials. Every licensed Hunter has a story like this one — try again with a different approach, or a different fighter.</p>
       <div class="end-actions">
         <button class="btn" id="retryBtn">Retry Trial</button>
         <button class="btn ghost" id="menuBtn">Choose Hunter</button>
