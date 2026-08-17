@@ -389,6 +389,7 @@ function newGame(hunterId){
 
 function startTrial(){
   const t = TRIALS[state.trialIndex];
+  state.busy = false;
   state.enemy = freshCombatant({
     name:t.name, accent:t.accent, glyph: t.boss ? 'PX' : ('T'+(state.trialIndex+1)),
     maxHp:t.maxHp, maxEnergy:t.maxEnergy, energyRegen:3
@@ -591,10 +592,12 @@ function tickEndOfRound(){
 
 function checkEnd(continueFn){
   if(state.enemy.hp<=0){
+    state.busy = false;
     onEnemyDefeated();
     return;
   }
   if(state.player.hp<=0){
+    state.busy = false;
     state.screen='lose';
     render();
     return;
