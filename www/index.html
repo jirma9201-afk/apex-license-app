@@ -187,6 +187,7 @@
   .status-chip.burn{ color:#e08277; border-color:rgba(193,72,60,0.4); }
   .status-chip.stun{ color:var(--amber); border-color:rgba(224,164,88,0.4); }
   .status-chip.weaken{ color:#b79ee0; border-color:rgba(142,124,195,0.4); }
+  .status-chip.regen{ color:#7fc98f; border-color:rgba(127,201,143,0.4); }
 
   .avatar{
     width:46px;height:46px;border-radius:50%;
@@ -340,6 +341,28 @@ const HUNTERS = [
       {id:'chillfocus', name:'Chill Focus', cost:2, type:'utility', heal:8, bonusEnergy:1, desc:'A moment of calm. Small heal, +1 energy next turn.'},
     ]
   },
+  {
+    id:'torin', name:'Torin Vale', title:'The Juggernaut', accent:'#B0794A',
+    glyph:'TV', maxHp:135, maxEnergy:6, energyRegen:3,
+    desc:'A brutal drain-fighter who heals off every hit he lands. Slow to fall once he gets rolling.',
+    cards:[
+      {id:'rending', name:'Rending Blow', cost:2, type:'attack', dmg:14, lifesteal:0.4, desc:'A tearing strike. Heals him for 40% of the damage dealt.'},
+      {id:'bulwark', name:'Bulwark Stance', cost:2, type:'defend', shield:15, desc:'Plants like a mountain, raising a heavy guard.'},
+      {id:'special', name:'Blood Reckoning', cost:5, cooldown:4, type:'special', dmg:24, lifesteal:0.5, desc:'A savage blow. Heals him for half the damage dealt.'},
+      {id:'secondwind', name:'Second Wind', cost:2, type:'utility', heal:14, desc:'Grits through it. A solid burst of recovery.'},
+    ]
+  },
+  {
+    id:'nyla', name:'Nyla Reyes', title:'The Chronicler', accent:'#C77DBA',
+    glyph:'NR', maxHp:96, maxEnergy:7, energyRegen:4,
+    desc:'A patient debuffer who wears foes down with decay while quietly recovering herself.',
+    cards:[
+      {id:'markdecay', name:'Mark of Decay', cost:2, type:'attack', dmg:9, burn:{dmg:4, turns:3}, desc:'A creeping curse that lingers.'},
+      {id:'wardsigil', name:'Ward Sigil', cost:2, type:'defend', shield:12, desc:'Etches a small protective sigil.'},
+      {id:'special', name:"Chronicle's End", cost:4, cooldown:3, type:'special', dmg:14, weaken:{pct:0.35, turns:1}, regen:{hp:8, turns:3}, desc:'Weakens the foe while beginning her own recovery.'},
+      {id:'steadyverse', name:'Steady Verse', cost:1, type:'utility', regen:{hp:6, turns:2}, desc:'A short verse of quiet regeneration.'},
+    ]
+  },
 ];
 
 const TRIALS = [
@@ -349,7 +372,9 @@ const TRIALS = [
   { name:'Hollow Trial', accent:'#7a6f9a', maxHp:125, maxEnergy:7, aggression:0.72 },
   { name:'Ember Reach', accent:'#c46b3f', maxHp:140, maxEnergy:7, aggression:0.75 },
   { name:'Rift Trial', accent:'#6f6fae', maxHp:155, maxEnergy:7, aggression:0.78 },
-  { name:'The Proctor', accent:'#E0A458', maxHp:170, maxEnergy:8, aggression:0.82, boss:true },
+  { name:'Verdant Maze', accent:'#5c8a4f', maxHp:170, maxEnergy:7, aggression:0.8 },
+  { name:'Obsidian Gate', accent:'#4a4a5c', maxHp:185, maxEnergy:8, aggression:0.81 },
+  { name:'The Proctor', accent:'#E0A458', maxHp:200, maxEnergy:8, aggression:0.83, boss:true },
 ];
 
 /* ============ STATE ============ */
@@ -367,6 +392,7 @@ function freshCombatant(base, isEnemy){
     shield: 0,
     burn: null, // {dmg, turns}
     weaken: null, // {pct, turns} — reduces this combatant's own next dealt damage
+    regen: null, // {hp, turns} — heals this combatant each round
     stunTurns: 0,
     cooldowns: {},
     cards: base.cards || null,
@@ -440,6 +466,14 @@ function applyCard(card, actor, opponent, actorLabel){
     addLog(`${actorLabel} uses ${card.name} — ${dmg} dmg${weakenedNote}.`);
     triggerHitFlash(actor===state.player ? 'enemy' : 'player');
     if(dmg>=20) triggerShake();
+    if(card.lifesteal){
+      const healed = Math.round(dmg * card.lifesteal);
+      actor.hp = Math.min(actor.maxHp, actor.hp + healed);
+      addLog(`${actorLabel} drains ${healed} hp.`);
+    }
+  }
+  if(card.regen){
+    actor.regen = {hp:card.regen.hp, turns:card.regen.turns};
   }
   if(card.weaken){
     opponent.weaken = {pct:card.weaken.pct, turns:card.weaken.turns};
@@ -536,6 +570,7 @@ const ENEMY_MOVES = [
   {id:'e_special', name:'Proctor Surge', cost:5, cooldown:3, type:'special', dmg:26, desc:''},
   {id:'e_mend', name:'Trial Mend', cost:2, type:'utility', heal:14, desc:''},
   {id:'e_chill', name:'Trial Chill', cost:2, type:'attack', dmg:9, weaken:{pct:0.3, turns:1}, desc:''},
+  {id:'e_drain', name:'Trial Drain', cost:3, type:'attack', dmg:15, lifesteal:0.3, desc:''},
 ];
 
 function enemyTurn(){
@@ -575,6 +610,12 @@ function tickEndOfRound(){
     if(c.weaken){
       c.weaken.turns -= 1;
       if(c.weaken.turns<=0) c.weaken = null;
+    }
+    if(c.regen){
+      c.hp = Math.min(c.maxHp, c.hp + c.regen.hp);
+      addLog(`${c.name} regenerates ${c.regen.hp} hp.`);
+      c.regen.turns -= 1;
+      if(c.regen.turns<=0) c.regen = null;
     }
     // cooldowns
     Object.keys(c.cooldowns||{}).forEach(k=>{
@@ -716,6 +757,7 @@ function renderBattle(){
           ${e.shield>0?`<span class="status-chip shield">🛡 ${e.shield}</span>`:''}
           ${e.burn?`<span class="status-chip burn">🔥 ${e.burn.turns}t</span>`:''}
           ${e.weaken?`<span class="status-chip weaken">⬇ weakened</span>`:''}
+          ${e.regen?`<span class="status-chip regen">✚ ${e.regen.turns}t</span>`:''}
           ${e.stunTurns>0?`<span class="status-chip stun">⏸ stunned</span>`:''}
         </div>
       </div>
@@ -733,6 +775,7 @@ function renderBattle(){
           ${p.shield>0?`<span class="status-chip shield">🛡 ${p.shield}</span>`:''}
           ${p.burn?`<span class="status-chip burn">🔥 ${p.burn.turns}t</span>`:''}
           ${p.weaken?`<span class="status-chip weaken">⬇ weakened</span>`:''}
+          ${p.regen?`<span class="status-chip regen">✚ ${p.regen.turns}t</span>`:''}
         </div>
       </div>
       ${gaugeSvg(p.energy/p.maxEnergy, p.accent)}
