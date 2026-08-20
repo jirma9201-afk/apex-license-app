@@ -28,9 +28,9 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     min-height:100vh;
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     justify-content:center;
-    padding:18px;
+    padding:28px 18px;
     -webkit-font-smoothing:antialiased;
   }
   .display{
@@ -567,7 +567,7 @@ const ENEMY_MOVES = [
   {id:'e_hit', name:'Trial Strike', cost:2, type:'attack', dmg:13, desc:''},
   {id:'e_heavy', name:'Heavy Blow', cost:3, type:'attack', dmg:19, desc:''},
   {id:'e_guard', name:'Trial Guard', cost:2, type:'defend', shield:14, desc:''},
-  {id:'e_special', name:'Proctor Surge', cost:5, cooldown:3, type:'special', dmg:26, desc:''},
+  {id:'e_special', name:'Trial Surge', cost:5, cooldown:3, type:'special', dmg:26, desc:''},
   {id:'e_mend', name:'Trial Mend', cost:2, type:'utility', heal:14, desc:''},
   {id:'e_chill', name:'Trial Chill', cost:2, type:'attack', dmg:9, weaken:{pct:0.3, turns:1}, desc:''},
   {id:'e_drain', name:'Trial Drain', cost:3, type:'attack', dmg:15, lifesteal:0.3, desc:''},
